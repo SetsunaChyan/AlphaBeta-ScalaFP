@@ -53,7 +53,21 @@ trait Position extends GamePos {
         x >= 0 && x < Position.len && y >= 0 && y < Position.len && board(x)(y) == Position.BLANK
 
     def isWin(): Boolean =
-        Math.abs(TicTacToeGame.static(this).v) >= Position.len * Position.fac
+        Math.max(count(Position.CROSS), count(Position.CIRCLE)) == Position.len
+
+    def count(tar: Int): Int = {
+        def count(x: Int, y: Int, dx: Int, dy: Int, tar: Int, step: Int = 0): Int =
+            if (step == Position.len) 0
+            else {
+                if (board(x)(y) == tar) 1 else 0
+            } + count(x + dx, y + dy, dx, dy, tar, step + 1)
+
+        val tmp: List[Int] = count(0, 0, 1, 0, tar) :: count(0, 1, 1, 0, tar) ::
+            count(0, 2, 1, 0, tar) :: count(0, 0, 0, 1, tar) ::
+            count(1, 0, 0, 1, tar) :: count(2, 0, 0, 1, tar) ::
+            count(0, 0, 1, 1, tar) :: count(0, 2, 1, -1, tar) :: Nil
+        tmp.reduce((x: Int, y: Int) => if (x > y) x else y)
+    }
 }
 
 object Position {
@@ -97,28 +111,15 @@ object TicTacToeGame extends Game[Position] {
         else p.reduce(gen, Stream.empty)
     }
 
+
     override def static(p: Position): Choice = {
-        def count(tar: Int): Int = {
-            def count(x: Int, y: Int, dx: Int, dy: Int, tar: Int, step: Int = 0): Int =
-                if (step == Position.len) 0
-                else {
-                    if (p.board(x)(y) == tar) 1 else 0
-                } + count(x + dx, y + dy, dx, dy, tar, step + 1)
-
-            val tmp: List[Int] = count(0, 0, 1, 0, tar) :: count(0, 1, 1, 0, tar) ::
-                count(0, 2, 1, 0, tar) :: count(0, 0, 0, 1, tar) ::
-                count(1, 0, 0, 1, tar) :: count(2, 0, 0, 1, tar) ::
-                count(0, 0, 1, 1, tar) :: count(0, 2, 1, -1, tar) :: Nil
-            tmp.reduce((x: Int, y: Int) => if (x > y) x else y)
-        }
-
-        val cx = count(Position.CROSS)
-        val co = count(Position.CIRCLE)
+        val cx = p.count(Position.CROSS)
+        val co = p.count(Position.CIRCLE)
         val v = if (p.isAITurn != p.isPre) -Position.fac else Position.fac
-        new Choice(v * {
-            if (cx == Position.len) Position.len + p.operation.length
-            else if (co == Position.len) -Position.len - p.operation.length
-            else cx - co
+        new Choice({
+            if (cx == Position.len) v * Position.len - p.operation.length
+            else if (co == Position.len) -v * Position.len + p.operation.length
+            else v * (cx - co)
         }, p)
     }
 }
